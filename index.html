@@ -2341,7 +2341,7 @@ function qItem(g){
   const u = UNIT_BY_ID[g.unit] || {color:"var(--muted)", name:"미분류"};
   const n = (g.files||[]).length, img = (g.files||[]).find(f => /^image\//.test(f.type||""));
   return `<button class="qitem" style="--c:${u.color}" data-open="${esc(g.id)}">
-    ${img ? `<img class="qthumb" src="${esc(fileURL(img))}" alt="" loading="lazy">` : ""}
+    ${img ? `<img class="qthumb" src="${esc(fileURL(img))}" alt="" loading="lazy" ${IMGFB}>` : ""}
     <span class="src">${esc(g.year||"")}${g.num ? ` · ${esc(g.num)}번` : ""}<small>${esc(g.exam||"")}</small></span>
     <span class="qmain"><span class="tt">${esc(g.title||autoTitle(g))}${g.example ? `<span class="example-badge">예시</span>` : ""}</span>
       <span class="tags"><span class="chip" style="box-shadow:inset 3px 0 0 ${u.color}">${esc(u.name)}</span>${g.topic ? `<span class="chip">${esc(g.topic)}</span>` : ""}${(g.tags||[]).slice(0,4).map(t => `<span class="chip">#${esc(t)}</span>`).join("")}${g.explanation ? `<span class="chip">해설 있음</span>` : ""}</span></span>
@@ -2410,6 +2410,8 @@ function modal(html){
 }
 function closeModal(){ $("#modalroot").innerHTML = ""; document.body.style.overflow = ""; }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#modalroot").innerHTML) closeModal(); });
+// 사진이 images 폴더가 아니라 저장소 맨 바깥에 올라가 있어도 보이게: 실패하면 바깥 경로로 한 번 더 시도
+const IMGFB = `onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=this.src.replace('/images/','/')}"`;
 function fileURL(f){ return f.local || f.url || ("/_blob/" + f.id); }
 
 function openDetail(id){
@@ -2421,7 +2423,7 @@ function openDetail(id){
     <h2>${esc(g.title||autoTitle(g))}</h2>
     ${g.question?`<div class="dsec"><h4>문제</h4><div class="txt">${rich(g.question)}</div></div>`:""}
     ${ch.length?`<div class="dsec"><h4>선지</h4><ul class="choices">${ch.map(c => `<li>${rich(c)}</li>`).join("")}</ul></div>`:""}
-    ${(g.files||[]).length?`<div class="dsec"><div class="attach">${g.files.map(f => /^image\//.test(f.type||"") ? `<img class="zoomable" src="${esc(fileURL(f))}" alt="${esc(f.name||"문제 사진")}" title="눌러서 크게 보기">` : `<a class="btn" href="${esc(fileURL(f))}" target="_blank" rel="noopener">${esc(f.name||"첨부 파일")} 열기 ↗</a>`).join("")}</div></div>`:""}
+    ${(g.files||[]).length?`<div class="dsec"><div class="attach">${g.files.map(f => /^image\//.test(f.type||"") ? `<img class="zoomable" src="${esc(fileURL(f))}" alt="${esc(f.name||"문제 사진")}" title="눌러서 크게 보기" ${IMGFB}>` : `<a class="btn" href="${esc(fileURL(f))}" target="_blank" rel="noopener">${esc(f.name||"첨부 파일")} 열기 ↗</a>`).join("")}</div></div>`:""}
     <details class="dsec" ${g.answer||g.explanation?"":"open"}><summary style="cursor:pointer;font-weight:700">정답과 해설 보기</summary>
       ${g.answer?`<p><b>정답</b> ${esc(g.answer)}</p>`:""}${g.explanation?`<div class="txt">${rich(g.explanation)}</div>`:`<p class="muted">해설이 아직 없어요.</p>`}</details>
     ${g.link?`<p><a href="${esc(g.link)}" target="_blank" rel="noopener">원문 출처 ↗</a></p>`:""}
@@ -2495,7 +2497,7 @@ function openForm(g){
     <div class="row-actions"><button class="btn primary" type="submit" id="q-save">저장</button><button class="btn" type="button" id="q-cancel">취소</button><span class="muted" id="q-prog" style="font-size:14px"></span></div>
   </form>`);
   const drawFiles = () => {
-    $("#q-thumbs", m).innerHTML = files.map((f,i) => `<div class="th"><span class="no">${i+1}</span>${/^image\//.test(f.type||"") ? `<img src="${esc(fileURL(f))}" alt="">` : `<span class="pdf">PDF</span>`}
+    $("#q-thumbs", m).innerHTML = files.map((f,i) => `<div class="th"><span class="no">${i+1}</span>${/^image\//.test(f.type||"") ? `<img src="${esc(fileURL(f))}" alt="" ${IMGFB}>` : `<span class="pdf">PDF</span>`}
       <small>${esc(f.name||"")}</small><span class="ta">${i ? `<button type="button" data-mv="${i}" aria-label="앞으로">←</button>` : ""}<button type="button" data-rm="${i}" aria-label="빼기">빼기</button></span></div>`).join("");
   };
   drawFiles();
