@@ -1969,7 +1969,7 @@ function mountScene(el){
 
 "use strict";
 /* ---------- 기본 데이터 ---------- */
-const EXAMS = ["수능","6월 모의평가","9월 모의평가","3월 학력평가","4월 학력평가","7월 학력평가","10월 학력평가","내신","기타"];
+const EXAMS = ["수능","6월 모의평가","9월 모의평가","3월 학력평가","4월 학력평가","5월 학력평가","7월 학력평가","10월 학력평가","내신","기타"];
 const UNIT_BY_ID = Object.fromEntries(UNITS.map(u => [u.id, u]));
 const ROUTES = ["home", ...UNITS.map(u => u.id), "gichul"];
 const NAVER = q => "https://ko.dict.naver.com/#/search?query=" + encodeURIComponent(q);
@@ -2447,7 +2447,7 @@ function openDetail(id){
   }
 }
 
-const EXAM_SLUG = {"수능":"suneung","6월 모의평가":"mo6","9월 모의평가":"mo9","3월 학력평가":"hak3","4월 학력평가":"hak4","7월 학력평가":"hak7","10월 학력평가":"hak10","내신":"naesin","기타":"etc"};
+const EXAM_SLUG = {"수능":"suneung","6월 모의평가":"mo6","9월 모의평가":"mo9","3월 학력평가":"hak3","4월 학력평가":"hak4","5월 학력평가":"hak5","7월 학력평가":"hak7","10월 학력평가":"hak10","내신":"naesin","기타":"etc"};
 // 휴대폰 사진처럼 큰 이미지는 긴 변 2200px, JPEG로 줄여서 올려요 (글씨가 읽힐 정도로 선명하게).
 async function compressImage(file){
   if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type)) return file;
