@@ -76,6 +76,7 @@ main{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
 .btn.danger{color:var(--seal);border-color:color-mix(in srgb,var(--seal) 40%,var(--line))}
 .btn.small{padding:4px 10px;font-size:13px}
+.more-row{display:flex;justify-content:center;margin-top:10px}
 .btn:disabled{opacity:.5;cursor:default}
 
 /* hero */
@@ -1869,11 +1870,11 @@ const SCENES = {
 
 /* 높임 */
 "t-honor": { cap: "<b>높임 표현</b> · 누구를 높이는지에 따라 주체·객체·상대 높임", build(r){
-  r.innerHTML = `<div class="an-sentence">할머니<span class="m s">께서</span> 선생님<span class="m o">께</span> 책을 <span class="m o">드리</span><span class="m s">시</span>었<span class="m h">습니다</span>.</div>
+  r.innerHTML = `<div class="an-sentence">할머니<span class="m s">께서</span> 선생<span class="m o">님</span><span class="m o">께</span> 책을 <span class="m o">드리</span><span class="m s">시</span>었<span class="m h">습니다</span>.</div>
   <div class="an-row" style="gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
-    <span class="an-role" data-r="s"><b>주체 높임</b><small>할머니 (문장의 주어)</small></span>
-    <span class="an-role" data-r="o"><b>객체 높임</b><small>선생님 (받는 대상)</small></span>
-    <span class="an-role" data-r="h"><b>상대 높임</b><small>이 말을 듣는 사람</small></span></div>`;
+    <span class="an-role" data-r="s"><b>주체 높임</b><small>할머니 (문장의 주어)</small><small>께서 · -시-</small></span>
+    <span class="an-role" data-r="o"><b>객체 높임</b><small>선생님 (받는 대상)</small><small>-님 · 께 · 드리다</small></span>
+    <span class="an-role" data-r="h"><b>상대 높임</b><small>이 말을 듣는 사람</small><small>-습니다</small></span></div>`;
   const on = k => () => { qa(r, ".m").forEach(m => m.classList.toggle("hi", m.classList.contains(k))); qa(r, ".an-role").forEach(x => x.classList.toggle("on", x.dataset.r === k)); };
   return [[on("s"), 1700], [on("o"), 1700], [on("h"), 1700], [() => { qa(r, ".m").forEach(m => m.classList.add("hi")); qa(r, ".an-role").forEach(x => x.classList.add("on")); }, 2400]];
 }},
@@ -2091,7 +2092,7 @@ function sortG(a, b){
 }
 
 /* ---------- 상태 ---------- */
-const S = { gichul: [], notes: [], db: "loading", canWrite: false, f: {unit:"all", exam:"all", year:"all", q:""} };
+const S = { gichul: [], notes: [], db: "loading", canWrite: false, f: {unit:"all", exam:"all", year:"all", q:""}, ugShow: {} };
 let DB = null, ASSETS = null, demoTimer = null;
 
 /* ---------- 라우팅 ---------- */
@@ -2104,6 +2105,7 @@ function renderTabs(){
 function render(){
   renderTabs();
   clearInterval(demoTimer);
+  S.ugShow = {};   // 다른 화면으로 가면 '이 단원 기출'은 다시 5개부터
   const r = route(), v = $("#view");
   if (r === "home") v.innerHTML = homeHTML();
   else if (r === "gichul") v.innerHTML = archiveHTML();
@@ -2383,8 +2385,14 @@ function updateDyn(){
     drawArchList();
   }
   const ug = $("#dyn-ugichul");
-  if (ug){ const st = stateHTML(); const list = S.gichul.filter(g => g.unit === ug.dataset.unit).sort(sortG);
-    ug.innerHTML = st || (list.length ? `<div class="qlist">${list.map(qItem).join("")}</div>` : `<div class="state">이 단원에 등록된 기출이 아직 없어요.</div>`); }
+  if (ug){ const st = stateHTML(), unit = ug.dataset.unit;
+    // 최근에 추가한 것부터 5개만 보여 주고, [더보기]를 누를 때마다 10개씩 더 보여 줌
+    const list = S.gichul.filter(g => g.unit === unit).sort((a,b) => (b.createdAt||0) - (a.createdAt||0) || sortG(a, b));
+    const shown = Math.min(list.length, S.ugShow[unit] || 5), rest = list.length - shown;
+    ug.innerHTML = st || (list.length ? `<div class="qlist">${list.slice(0, shown).map(qItem).join("")}</div>` +
+      (rest > 0 ? `<div class="more-row"><button class="btn" id="ug-more">더보기 <span class="muted">(${rest}개 더 있어요)</span></button></div>` : "")
+      : `<div class="state">이 단원에 등록된 기출이 아직 없어요.</div>`);
+    const mb = $("#ug-more"); if (mb) mb.onclick = () => { S.ugShow[unit] = shown + 10; updateDyn(); }; }
   const nb = $("#dyn-notes");
   if (nb){
     const unit = nb.dataset.unit, st = stateHTML();
