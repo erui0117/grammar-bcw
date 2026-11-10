@@ -77,6 +77,7 @@ main{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
 .btn.danger{color:var(--seal);border-color:color-mix(in srgb,var(--seal) 40%,var(--line))}
 .btn.small{padding:4px 10px;font-size:13px}
 .more-row{display:flex;justify-content:center;margin-top:10px}
+
 .btn:disabled{opacity:.5;cursor:default}
 
 /* hero */
@@ -392,6 +393,33 @@ a.w:hover{background:rgba(3,199,90,.12)}
 #selpop a:hover{background:rgba(255,255,255,.15)}
 footer{max-width:1200px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:13px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* 내 풀이 기록 · 별표 */
+.my-sum{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:0 0 8px;font-size:14px}
+.my-rec{color:var(--muted)} .my-rec b{color:var(--ink)}
+.linkbtn{border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:13px;padding:0 2px}
+.chip.my.ok{background:color-mix(in srgb,#2e9d57 16%,transparent);color:color-mix(in srgb,#1f7a42 80%,var(--ink))}
+.chip.my.no{background:color-mix(in srgb,var(--seal) 15%,transparent);color:var(--seal)}
+.my-star{color:#e0a100;font-size:15px;line-height:1;margin-right:2px}
+.star-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;width:32px;height:28px;font-size:16px;line-height:1;cursor:pointer;color:var(--muted)}
+.star-btn[aria-pressed="true"]{color:#e0a100;border-color:#e0a100}
+.solve{background:var(--soft);border-radius:12px;padding:12px 14px}
+.solve h4{margin-bottom:8px}
+.srow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+.srow .sk{font-weight:700;min-width:42px}
+.ch{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:21px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:transform .12s}
+.ch:not(:disabled):hover{border-color:var(--accent);transform:translateY(-1px)}
+.ch:disabled{cursor:default;opacity:.55}
+.ch.right{opacity:1;background:color-mix(in srgb,#2e9d57 18%,var(--surface));border-color:#2e9d57;color:color-mix(in srgb,#1f7a42 85%,var(--ink));font-weight:700}
+.ch.wrong{opacity:1;background:color-mix(in srgb,var(--seal) 16%,var(--surface));border-color:var(--seal);color:var(--seal);text-decoration:line-through}
+.sres{margin:8px 0 6px;min-height:1.2em;font-weight:600}
+.sres.ok{color:color-mix(in srgb,#1f7a42 85%,var(--ink))} .sres.no{color:var(--seal)}
+@media (max-width:560px){.ch{width:40px;height:40px;font-size:19px}.srow{gap:6px}}
+#s-again[hidden]{display:none}
+/* 휴대폰에서 화면이 옆으로 넓어지지 않게: 긴 주제 칩은 줄바꿈, 1단 배치는 내용 폭에 끌려가지 않게 */
+.qitem .tags .chip,.modal .row-actions .chip{white-space:normal;text-align:left}
+@media (max-width:860px){.ulayout,.home-row,.hero{grid-template-columns:minmax(0,1fr)}.ulayout>*,.home-row>*,.hero>*{min-width:0}}
+@media (max-width:640px){.tbl{display:block;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}}
+@media (max-width:560px){.qlist .qitem{flex-wrap:wrap;gap:10px 12px}.qlist .qitem .qmain{flex:1 1 100%}.qlist .qthumb{width:52px;height:52px}}
 </style>
 </head>
 <body>
@@ -2092,7 +2120,36 @@ function sortG(a, b){
 }
 
 /* ---------- 상태 ---------- */
-const S = { gichul: [], notes: [], db: "loading", canWrite: false, f: {unit:"all", exam:"all", year:"all", q:""}, ugShow: {} };
+const S = { gichul: [], notes: [], db: "loading", canWrite: false, f: {unit:"all", exam:"all", year:"all", q:"", mine:"all"}, ugShow: {} };
+
+/* ---------- 내 풀이 기록 · 별표 (로그인 없이 이 기기 브라우저에만 저장) ---------- */
+const MY_KEY = "madang-my-v1";
+const MY = (() => { try { return JSON.parse(localStorage.getItem(MY_KEY) || "{}") || {}; } catch(_){ return {}; } })();
+MY.res = MY.res || {}; MY.star = MY.star || {};
+function mySave(){ try { localStorage.setItem(MY_KEY, JSON.stringify(MY)); } catch(_){} }
+const CIRC = "①②③④⑤";
+// 정답 글자를 읽어 채점용 표로: "④" → {"":"④"}, "11번 ④ / 12번 ①" → {"11":"④","12":"①"}. 읽을 수 없으면 null(풀이 모드 없음)
+function answerKey(g){
+  const a = String(g.answer || "").trim(); if (!a) return null;
+  const multi = [...a.matchAll(/(\d+)\s*번\s*([①②③④⑤])/g)];
+  if (multi.length) return Object.fromEntries(multi.map(m => [m[1], m[2]]));
+  if (/^[①②③④⑤]$/.test(a)) return {"": a};
+  if (/^[1-5]$/.test(a)) return {"": CIRC[+a - 1]};
+  return null;
+}
+// "none" 안 풂 · "part" 묶음 중 일부만 풂 · "ok" 모두 맞힘 · "wrong" 마지막 풀이에서 하나라도 틀림
+function myStatus(g){
+  const k = answerKey(g), r = MY.res[g.id]; if (!k || !r) return "none";
+  const keys = Object.keys(k), done = keys.filter(x => r[x]);
+  if (!done.length) return "none";
+  if (done.some(x => !r[x].ok)) return "wrong";
+  return done.length === keys.length ? "ok" : "part";
+}
+function myMark(g){
+  const st = myStatus(g);
+  return (MY.star[g.id] ? `<span class="my-star" title="별표한 문제">★</span>` : "") +
+    (st === "ok" ? `<span class="chip my ok">✓ 맞힘</span>` : st === "wrong" ? `<span class="chip my no">✗ 틀림</span>` : "");
+}
 let DB = null, ASSETS = null, demoTimer = null;
 
 /* ---------- 라우팅 ---------- */
@@ -2318,7 +2375,9 @@ function initWidget(el){
 /* ---------- 기출 자료실 ---------- */
 function filtered(){
   const f = S.f, q = f.q.trim().toLowerCase();
-  return S.gichul.filter(g => (f.unit==="all"||g.unit===f.unit) && (f.exam==="all"||g.exam===f.exam) && (f.year==="all"||String(g.year)===f.year)
+  const mine = g => f.mine === "all" || (f.mine === "star" ? !!MY.star[g.id] : f.mine === "wrong" ? myStatus(g) === "wrong"
+    : !!answerKey(g) && ["none", "part"].includes(myStatus(g)));
+  return S.gichul.filter(g => mine(g) && (f.unit==="all"||g.unit===f.unit) && (f.exam==="all"||g.exam===f.exam) && (f.year==="all"||String(g.year)===f.year)
     && (!q || [g.title,g.topic,g.question,g.explanation,(g.tags||[]).join(" "),srcLabel(g)].join(" ").toLowerCase().includes(q))).sort(sortG);
 }
 function archiveHTML(){
@@ -2328,12 +2387,14 @@ function archiveHTML(){
     <div class="ufilter" id="f-unit"></div>
     <select id="f-exam" aria-label="시험 종류"><option value="all">모든 시험</option>${EXAMS.map(x => `<option>${x}</option>`).join("")}</select>
     <select id="f-year" aria-label="연도"></select>
+    <select id="f-mine" aria-label="내 풀이 기록"><option value="all">내 풀이: 전체</option><option value="todo">안 푼 문제</option><option value="wrong">틀린 문제</option><option value="star">별표한 문제</option></select>
     <input id="f-q" type="search" placeholder="제목, 개념, 태그로 검색" aria-label="기출 검색">
   </div>
   <div id="dyn-arch"></div>`;
 }
 function bindArchive(){
-  $("#f-exam").value = S.f.exam; $("#f-q").value = S.f.q;
+  $("#f-exam").value = S.f.exam; $("#f-q").value = S.f.q; $("#f-mine").value = S.f.mine;
+  $("#f-mine").onchange = e => { S.f.mine = e.target.value; drawArchList(); };
   $("#f-exam").onchange = e => { S.f.exam = e.target.value; updateDyn(); };
   $("#f-year").onchange = e => { S.f.year = e.target.value; updateDyn(); };
   $("#f-q").oninput = e => { S.f.q = e.target.value; drawArchList(); };
@@ -2346,7 +2407,7 @@ function qItem(g){
     ${img ? `<img class="qthumb" src="${esc(fileURL(img))}" alt="" loading="lazy" ${IMGFB}>` : ""}
     <span class="src">${esc(g.year||"")}${g.num ? ` · ${esc(g.num)}번` : ""}<small>${esc(g.exam||"")}</small></span>
     <span class="qmain"><span class="tt">${esc(g.title||autoTitle(g))}${g.example ? `<span class="example-badge">예시</span>` : ""}</span>
-      <span class="tags"><span class="chip" style="box-shadow:inset 3px 0 0 ${u.color}">${esc(u.name)}</span>${g.topic ? `<span class="chip">${esc(g.topic)}</span>` : ""}${(g.tags||[]).slice(0,4).map(t => `<span class="chip">#${esc(t)}</span>`).join("")}${g.explanation ? `<span class="chip">해설 있음</span>` : ""}</span></span>
+      <span class="tags">${myMark(g)}<span class="chip" style="box-shadow:inset 3px 0 0 ${u.color}">${esc(u.name)}</span>${g.topic ? `<span class="chip">${esc(g.topic)}</span>` : ""}${(g.tags||[]).slice(0,4).map(t => `<span class="chip">#${esc(t)}</span>`).join("")}${g.explanation ? `<span class="chip">해설 있음</span>` : ""}</span></span>
     <span class="att">${n ? `사진 ${n}` : ""}</span></button>`;
 }
 function stateHTML(){
@@ -2360,9 +2421,19 @@ function drawArchList(){
   const box = $("#dyn-arch"); if (!box) return;
   const st = stateHTML(); if (st){ box.innerHTML = st; return; }
   const list = filtered();
-  box.innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14px">${list.length}문항</p>` +
-    (list.length ? `<div class="qlist">${list.map(qItem).join("")}</div>` :
+  const solvable = S.gichul.filter(answerKey), sts = solvable.map(myStatus);
+  const nDone = sts.filter(x => x === "ok" || x === "wrong").length, nWrong = sts.filter(x => x === "wrong").length;
+  const nStar = S.gichul.filter(g => MY.star[g.id]).length, hasRec = Object.keys(MY.res).length || Object.keys(MY.star).length;
+  const EMPTY = {todo: "모든 문제를 풀었어요. 수고했어요!", wrong: "틀린 문제가 없어요. 문제를 풀다가 틀리면 여기에 모여요.", star: "별표한 문제가 없어요. 문제 창 위쪽의 ☆를 누르면 여기에 모여요."};
+  box.innerHTML = `<div class="my-sum"><span class="muted">${list.length}문항</span><span class="my-rec">내 기록: 푼 문제 <b>${nDone}</b>/${solvable.length} · 틀린 문제 <b>${nWrong}</b> · 별표 <b>${nStar}</b>${hasRec ? ` <button class="linkbtn" id="my-clear">기록 지우기</button>` : ""}</span></div>` +
+    (list.length ? `<div class="qlist">${list.map(qItem).join("")}</div>` : S.f.mine !== "all" && S.gichul.length ? `<div class="state">${EMPTY[S.f.mine]}</div>` :
      `<div class="state">${S.gichul.length ? "조건에 맞는 기출이 없어요. 필터를 바꿔 보세요." : (S.canWrite ? "아직 기출이 없어요. 오른쪽 위 [+ 기출 추가]로 첫 문제를 넣어 보세요." : "아직 등록된 기출이 없어요.")}</div>`);
+  const cb = $("#my-clear");
+  if (cb) cb.onclick = () => {
+    cb.parentElement.innerHTML = `이 기기의 풀이 기록과 별표를 모두 지울까요? <button class="btn small danger" id="my-yes">지우기</button> <button class="btn small" id="my-no">취소</button>`;
+    $("#my-no").onclick = drawArchList;
+    $("#my-yes").onclick = () => { MY.res = {}; MY.star = {}; mySave(); updateDyn(); };
+  };
 }
 
 /* ---------- 동적 영역 갱신 ---------- */
@@ -2422,22 +2493,71 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#modalr
 const IMGFB = `onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=this.src.replace('/images/','/')}"`;
 function fileURL(f){ return f.local || f.url || ("/_blob/" + f.id); }
 
+/* ---------- 직접 풀어 보기 ---------- */
+function solveHTML(g){
+  const key = answerKey(g); if (!key) return "";
+  const st = myStatus(g);
+  const prev = st === "wrong" ? "지난번에 틀린 문제예요. 다시 도전해 봐요!" : st === "ok" ? "지난번에 맞힌 문제예요." : st === "part" ? "묶음 중 일부만 풀었던 문제예요." : "";
+  return `<div class="dsec solve"><h4>직접 풀어 보기 <span class="muted" style="font-weight:500">· 답을 고르면 바로 채점하고 해설을 열어 줘요</span></h4>
+    ${Object.keys(key).map(k => `<div class="srow" data-k="${esc(k)}">${k ? `<span class="sk">${esc(k)}번</span>` : ""}${[...CIRC].map(c => `<button class="ch" data-c="${c}" aria-label="${k ? esc(k) + "번 " : ""}${c}번 선지">${c}</button>`).join("")}</div>`).join("")}
+    <p class="sres" aria-live="polite">${prev ? `<span class="muted">${prev}</span>` : ""}</p>
+    <button class="btn small" id="s-again" hidden>다시 풀기</button></div>`;
+}
+function bindSolve(m, g){
+  const key = answerKey(g); if (!key) return;
+  const keys = Object.keys(key), res = $(".sres", m), again = $("#s-again", m), exp = $("#d-exp", m);
+  let picked = {};
+  m.querySelectorAll(".srow").forEach(row => row.onclick = e => {
+    const b = e.target.closest(".ch"); if (!b || row.dataset.done) return;
+    const k = row.dataset.k, ans = key[k], ok = b.dataset.c === ans;
+    row.dataset.done = "1";
+    row.querySelectorAll(".ch").forEach(x => { x.disabled = true; if (x.dataset.c === ans) x.classList.add("right"); });
+    if (!ok) b.classList.add("wrong");
+    const rec = (MY.res[g.id] = MY.res[g.id] || {}), old = rec[k] || {n: 0, miss: 0};
+    rec[k] = {pick: b.dataset.c, ok, t: Date.now(), n: old.n + 1, miss: old.miss + (ok ? 0 : 1)}; mySave();
+    picked[k] = ok;
+    if (keys.every(x => x in picked)){
+      const nOk = keys.filter(x => picked[x]).length, all = nOk === keys.length;
+      res.className = "sres " + (all ? "ok" : "no");
+      res.innerHTML = all ? (keys.length > 1 ? `모두 정답이에요! 해설로 한 번 더 확인해 봐요.` : `정답이에요! 해설로 한 번 더 확인해 봐요.`)
+        : (keys.length > 1 ? `${keys.length}문제 중 ${nOk}문제를 맞혔어요.` : `아쉬워요. 정답은 ${ans}예요.`) + ` 이 문제는 <b>틀린 문제</b>에 모아 둘게요.`;
+      if (exp) exp.open = true; again.hidden = false; updateDyn();
+      res.scrollIntoView({block: "nearest", behavior: "smooth"});
+    } else {
+      res.className = "sres " + (ok ? "ok" : "no");
+      res.textContent = `${k}번 ${ok ? "정답" : "오답"}! 나머지 문제도 골라 봐요.`;
+    }
+  });
+  again.onclick = () => {
+    picked = {};
+    m.querySelectorAll(".srow").forEach(row => { delete row.dataset.done; row.querySelectorAll(".ch").forEach(x => { x.disabled = false; x.classList.remove("right", "wrong"); }); });
+    res.className = "sres"; res.textContent = ""; if (exp) exp.open = false; again.hidden = true;
+  };
+  const sb = $("#d-star", m);
+  if (sb) sb.onclick = () => {
+    if (MY.star[g.id]) delete MY.star[g.id]; else MY.star[g.id] = Date.now();
+    mySave(); sb.textContent = MY.star[g.id] ? "★" : "☆"; sb.setAttribute("aria-pressed", !!MY.star[g.id]); updateDyn();
+  };
+}
+
 function openDetail(id){
   const g = S.gichul.find(x => x.id === id); if (!g) return;
   const u = UNIT_BY_ID[g.unit] || {name:"미분류", color:"var(--muted)"};
   const ch = (g.choices||"").split("\n").filter(s => s.trim());
   const m = modal(`<div style="--c:${u.color}">
-    <div class="row-actions" style="margin:0 0 6px"><span class="chip" style="box-shadow:inset 3px 0 0 ${u.color}">${esc(u.name)}</span>${g.topic?`<span class="chip">${esc(g.topic)}</span>`:""}<span class="chip">${esc(srcLabel(g))}${g.num?` ${esc(g.num)}번`:""}</span>${g.example?`<span class="example-badge">예시</span>`:""}</div>
+    <div class="row-actions" style="margin:0 0 6px"><button class="star-btn" id="d-star" aria-pressed="${!!MY.star[g.id]}" title="별표: 다시 볼 문제로 모아 두기">${MY.star[g.id] ? "★" : "☆"}</button><span class="chip" style="box-shadow:inset 3px 0 0 ${u.color}">${esc(u.name)}</span>${g.topic?`<span class="chip">${esc(g.topic)}</span>`:""}<span class="chip">${esc(srcLabel(g))}${g.num?` ${esc(g.num)}번`:""}</span>${g.example?`<span class="example-badge">예시</span>`:""}</div>
     <h2>${esc(g.title||autoTitle(g))}</h2>
     ${g.question?`<div class="dsec"><h4>문제</h4><div class="txt">${rich(g.question)}</div></div>`:""}
     ${ch.length?`<div class="dsec"><h4>선지</h4><ul class="choices">${ch.map(c => `<li>${rich(c)}</li>`).join("")}</ul></div>`:""}
     ${(g.files||[]).length?`<div class="dsec"><div class="attach">${g.files.map(f => /^image\//.test(f.type||"") ? `<img class="zoomable" src="${esc(fileURL(f))}" alt="${esc(f.name||"문제 사진")}" title="눌러서 크게 보기" ${IMGFB}>` : `<a class="btn" href="${esc(fileURL(f))}" target="_blank" rel="noopener">${esc(f.name||"첨부 파일")} 열기 ↗</a>`).join("")}</div></div>`:""}
-    <details class="dsec" ${g.answer||g.explanation?"":"open"}><summary style="cursor:pointer;font-weight:700">정답과 해설 보기</summary>
+    ${solveHTML(g)}
+    <details class="dsec" id="d-exp" ${g.answer||g.explanation?"":"open"}><summary style="cursor:pointer;font-weight:700">정답과 해설 보기</summary>
       ${g.answer?`<p><b>정답</b> ${esc(g.answer)}</p>`:""}${g.explanation?`<div class="txt">${rich(g.explanation)}</div>`:`<p class="muted">해설이 아직 없어요.</p>`}</details>
     ${g.link?`<p><a href="${esc(g.link)}" target="_blank" rel="noopener">원문 출처 ↗</a></p>`:""}
     ${S.canWrite?`<div class="row-actions" id="dact"><button class="btn" id="d-edit">고치기</button><button class="btn danger" id="d-del">삭제</button></div>`:""}
   </div>`);
   linkWords(m);
+  bindSolve(m, g);
   m.querySelectorAll(".zoomable").forEach(im => im.onclick = () => {
     const ov = document.createElement("div"); ov.className = "zoom-ov"; ov.innerHTML = `<img src="${im.src}" alt=""><span>화면을 누르면 닫혀요</span>`;
     ov.onclick = () => ov.remove(); document.body.appendChild(ov);
